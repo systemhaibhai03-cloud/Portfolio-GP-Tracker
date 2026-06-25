@@ -1,0 +1,452 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<title>Portfolio GP Tracker — Vishal Group</title>
+<link rel="preconnect" href="https://fonts.googleapis.com">
+<link href="https://fonts.googleapis.com/css2?family=Space+Grotesk:wght@500;600;700&family=Inter:wght@400;500;600;700&display=swap" rel="stylesheet">
+<script src="https://cdnjs.cloudflare.com/ajax/libs/Chart.js/4.4.1/chart.umd.min.js"></script>
+<style>
+:root{
+  --ink:#0B2233; --ink-soft:#3A5468; --line:#DCE3EC; --line-soft:#EAEEF3;
+  --paper:#EEF1F5; --panel:#FFFFFF; --rail:#0E2A3B;
+  --gold:#C7902B; --gold-soft:#E8C77E;
+  --pos:#1E8E5A; --neg:#C9382E; --steel:#2C6E9B; --steel-soft:#D7E6F1;
+  --shadow:0 1px 2px rgba(11,34,51,.06),0 4px 16px rgba(11,34,51,.05);
+}
+*{box-sizing:border-box}
+html,body{margin:0;background:var(--paper);color:var(--ink);
+  font-family:'Inter',system-ui,sans-serif;font-variant-numeric:tabular-nums;-webkit-font-smoothing:antialiased}
+h1,h2,h3{font-family:'Space Grotesk',sans-serif;margin:0;letter-spacing:-.01em}
+.num{font-variant-numeric:tabular-nums}
+button{font-family:inherit;cursor:pointer}
+input,select{font-family:inherit;font-variant-numeric:tabular-nums}
+
+/* header */
+header{background:linear-gradient(120deg,#0E2A3B 0%,#143A52 60%,#10303f 100%);color:#fff;
+  padding:18px 26px 0;position:relative;overflow:hidden}
+header::after{content:"";position:absolute;left:0;right:0;bottom:0;height:3px;
+  background:linear-gradient(90deg,var(--gold) 0%,var(--gold-soft) 100%)}
+.brand{display:flex;align-items:baseline;justify-content:space-between;flex-wrap:wrap;gap:12px}
+.brand h1{font-size:21px;font-weight:700}
+.brand .sub{font-size:12.5px;color:#9FBACE;font-weight:500;letter-spacing:.02em}
+.tools{display:flex;gap:8px;flex-wrap:wrap}
+.tools button{background:rgba(255,255,255,.08);color:#fff;border:1px solid rgba(255,255,255,.18);
+  border-radius:7px;padding:7px 13px;font-size:12.5px;font-weight:500;transition:.15s}
+.tools button:hover{background:rgba(255,255,255,.16)}
+.tools button.gold{background:var(--gold);border-color:var(--gold)}
+.tools button.gold:hover{background:#b07e22}
+nav{display:flex;gap:2px;margin-top:16px}
+nav button{background:none;border:none;color:#9FBACE;font-size:13.5px;font-weight:600;
+  padding:11px 18px;border-bottom:2.5px solid transparent;letter-spacing:.01em}
+nav button.active{color:#fff;border-bottom-color:var(--gold)}
+nav button:hover{color:#fff}
+
+main{max-width:1240px;margin:0 auto;padding:24px 26px 60px}
+.view{display:none}
+.view.active{display:block}
+
+/* KPI strip */
+.kpis{display:grid;grid-template-columns:repeat(auto-fit,minmax(168px,1fr));gap:14px;margin-bottom:22px}
+.kpi{background:var(--panel);border:1px solid var(--line);border-radius:11px;padding:15px 16px;box-shadow:var(--shadow);position:relative}
+.kpi .lbl{font-size:11px;text-transform:uppercase;letter-spacing:.07em;color:var(--ink-soft);font-weight:600}
+.kpi .val{font-family:'Space Grotesk';font-size:23px;font-weight:600;margin-top:7px;line-height:1}
+.kpi .foot{font-size:11.5px;color:var(--ink-soft);margin-top:6px}
+.kpi.accent::before{content:"";position:absolute;left:0;top:13px;bottom:13px;width:3px;border-radius:3px;background:var(--gold)}
+.kpi.pos .val{color:var(--pos)} .kpi.neg .val{color:var(--neg)}
+
+/* panel + table */
+.panel{background:var(--panel);border:1px solid var(--line);border-radius:12px;box-shadow:var(--shadow);overflow:hidden;margin-bottom:22px}
+.panel-h{display:flex;align-items:center;justify-content:space-between;padding:15px 18px;border-bottom:1px solid var(--line-soft);gap:12px;flex-wrap:wrap}
+.panel-h h2{font-size:15px;font-weight:600}
+.panel-h .hint{font-size:12px;color:var(--ink-soft)}
+.tbl-wrap{overflow-x:auto}
+table{border-collapse:collapse;width:100%;font-size:12.5px}
+th{background:#F7F9FB;color:var(--ink-soft);text-transform:uppercase;font-size:10.5px;letter-spacing:.05em;
+  font-weight:700;padding:10px 12px;text-align:right;white-space:nowrap;border-bottom:1px solid var(--line);position:sticky;top:0}
+th.l,td.l{text-align:left}
+td{padding:9px 12px;text-align:right;white-space:nowrap;border-bottom:1px solid var(--line-soft);color:var(--ink)}
+tbody tr:hover{background:#FAFBFC}
+tr.tot td{font-weight:700;background:#F2F6F4;border-top:2px solid var(--line)}
+.code{font-weight:600;font-family:'Space Grotesk'}
+.muted{color:var(--ink-soft)}
+.neg-v{color:var(--neg)} .pos-v{color:var(--pos)}
+
+/* status pill */
+.pill{display:inline-block;padding:3px 9px;border-radius:20px;font-size:11px;font-weight:600;letter-spacing:.01em}
+.pill.ok{background:#E4F3EB;color:var(--pos)}
+.pill.over{background:#FBEEDD;color:#A56A12}
+.pill.loss{background:#FBE4E2;color:var(--neg)}
+.pill.done{background:#E2ECF4;color:var(--steel)}
+
+/* MOP meter */
+.meter{position:relative;height:7px;width:74px;background:var(--line-soft);border-radius:5px;display:inline-block;vertical-align:middle;margin-right:7px;overflow:hidden}
+.meter > i{position:absolute;left:0;top:0;bottom:0;background:linear-gradient(90deg,var(--steel),#3f8fc4);border-radius:5px}
+.meter.over > i{background:linear-gradient(90deg,#A56A12,var(--gold))}
+
+/* diverging contract A/L bar */
+.div-cell{display:flex;align-items:center;gap:8px;justify-content:flex-end}
+.div-bar{position:relative;width:96px;height:14px;flex:none}
+.div-bar .mid{position:absolute;left:50%;top:0;bottom:0;width:1px;background:var(--line)}
+.div-bar > span{position:absolute;top:2px;bottom:2px;border-radius:2px}
+.div-bar .right{left:50%;background:var(--steel)}
+.div-bar .left{right:50%;background:var(--gold)}
+
+/* selectors / inputs */
+.selrow{display:flex;align-items:center;gap:12px;flex-wrap:wrap}
+select.proj,input.cell{border:1px solid var(--line);border-radius:7px;padding:8px 11px;font-size:13px;color:var(--ink);background:#fff}
+select.proj{font-weight:600;min-width:230px}
+input.cell{width:100%;text-align:right;border:1px solid transparent;background:transparent;border-radius:5px}
+input.cell:hover{border-color:var(--line-soft)}
+input.cell:focus{outline:none;border-color:var(--steel);background:#fff}
+input.cell.txt{text-align:left}
+td.edit{padding:4px 6px}
+.btn-sm{background:#fff;border:1px solid var(--line);border-radius:6px;padding:6px 11px;font-size:12px;font-weight:600;color:var(--ink)}
+.btn-sm:hover{border-color:var(--steel);color:var(--steel)}
+.btn-add{background:var(--rail);color:#fff;border:none;border-radius:7px;padding:8px 15px;font-size:12.5px;font-weight:600}
+.btn-add:hover{background:#143A52}
+.del{color:var(--neg);background:none;border:none;font-size:15px;font-weight:700;line-height:1;padding:2px 6px}
+.del:hover{color:#8f261e}
+
+.chart-box{padding:16px 18px}
+.chart-box canvas{max-height:300px}
+.proj-head{display:flex;gap:18px;flex-wrap:wrap;align-items:flex-end;margin-bottom:18px}
+.proj-head .meta{font-size:12.5px;color:var(--ink-soft);font-weight:500}
+.note{font-size:12px;color:var(--ink-soft);padding:12px 18px;border-top:1px solid var(--line-soft);background:#FAFBFC}
+.flag{font-size:11px;color:var(--neg);font-weight:600}
+@media(max-width:640px){.kpi .val{font-size:20px}.brand h1{font-size:18px}}
+</style>
+</head>
+<body>
+<header>
+  <div class="brand">
+    <div>
+      <h1>Portfolio GP Tracker</h1>
+      <div class="sub">VISHAL GROUP · POC (Cost-to-Cost) Method · FY 2026–27</div>
+    </div>
+    <div class="tools">
+      <button onclick="exportJSON()">⤓ Export data</button>
+      <button onclick="document.getElementById('imp').click()">⤒ Import data</button>
+      <input type="file" id="imp" accept="application/json" style="display:none" onchange="importJSON(event)">
+      <button class="gold" onclick="exportCSV()">Export portfolio CSV</button>
+    </div>
+  </div>
+  <nav>
+    <button class="tab active" data-v="portfolio" onclick="go('portfolio')">Portfolio</button>
+    <button class="tab" data-v="project" onclick="go('project')">Project View</button>
+    <button class="tab" data-v="manage" onclick="go('manage')">Manage Data</button>
+  </nav>
+</header>
+
+<main>
+  <!-- PORTFOLIO -->
+  <section id="portfolio" class="view active">
+    <div class="kpis" id="kpis"></div>
+    <div class="panel">
+      <div class="panel-h">
+        <h2>All Projects</h2>
+        <span class="hint">Recognised = MOP × Estimated Revenue · Contract bar: <b style="color:var(--steel)">▮</b> unbilled (asset) · <b style="color:var(--gold)">▮</b> excess billing (liability)</span>
+      </div>
+      <div class="tbl-wrap"><table id="pftbl"></table></div>
+    </div>
+    <div class="panel chart-box">
+      <h2 style="font-size:14px;margin-bottom:10px">Recognised Revenue vs Invoiced — by project</h2>
+      <canvas id="pfChart"></canvas>
+    </div>
+  </section>
+
+  <!-- PROJECT VIEW -->
+  <section id="project" class="view">
+    <div class="selrow" style="margin-bottom:18px">
+      <label style="font-size:12.5px;font-weight:600;color:var(--ink-soft)">PROJECT</label>
+      <select class="proj" id="projSel" onchange="renderProject()"></select>
+    </div>
+    <div class="kpis" id="pjkpis"></div>
+    <div class="panel">
+      <div class="panel-h"><h2>Month-wise POC Statement</h2><span class="hint">auto-calculated</span></div>
+      <div class="tbl-wrap"><table id="pjtbl"></table></div>
+    </div>
+  </section>
+
+  <!-- MANAGE -->
+  <section id="manage" class="view">
+    <div class="panel">
+      <div class="panel-h">
+        <h2>Projects</h2>
+        <button class="btn-add" onclick="addProject()">+ Add project</button>
+      </div>
+      <div class="tbl-wrap"><table id="projEdit"></table></div>
+      <div class="note">Yellow logic: GP &amp; GP% auto. Cost revise ho to <b>Estimated Cost (EAC)</b> update karo — MOP &amp; loss-check khud adjust honge. Agar EAC &gt; Revenue → LOSS flag.</div>
+    </div>
+    <div class="panel">
+      <div class="panel-h">
+        <h2>Monthly Data <span class="muted" style="font-weight:400;font-size:12px">(from Tally)</span></h2>
+        <button class="btn-add" onclick="addMonthly()">+ Add month row</button>
+      </div>
+      <div class="tbl-wrap"><table id="mdEdit"></table></div>
+      <div class="note">COGS = Opening + Purchase + Labour + Other − Closing &nbsp;(auto). Invoiced = Tally se actual bill raised.</div>
+    </div>
+  </section>
+</main>
+
+<script>
+const MONTHS=["Apr-26","May-26","Jun-26","Jul-26","Aug-26","Sep-26","Oct-26","Nov-26","Dec-26","Jan-27","Feb-27","Mar-27"];
+
+let state={
+  projects:[
+    {code:"P001",client:"IOCL",site:"Panipat Refinery – Electrical",estRev:5134095,estCost:3850571.25},
+    {code:"P002",client:"NTPC",site:"Dadri – Cable Laying",estRev:8000000,estCost:6000000},
+    {code:"P003",client:"HPCL",site:"Vizag – Substation Works",estRev:3000000,estCost:2550000},
+  ],
+  monthly:[
+    {code:"P001",month:"Apr-26",open:0,purchase:73882,labour:0,other:5000,close:73882,invoiced:0},
+    {code:"P001",month:"May-26",open:73882,purchase:1897200,labour:0,other:136022,close:1971082,invoiced:0},
+    {code:"P001",month:"Jun-26",open:1971082,purchase:0,labour:417095,other:0,close:558274,invoiced:2798854},
+    {code:"P001",month:"Jul-26",open:558274,purchase:0,labour:0,other:0,close:0,invoiced:0},
+    {code:"P002",month:"Apr-26",open:0,purchase:500000,labour:200000,other:30000,close:400000,invoiced:0},
+    {code:"P002",month:"May-26",open:400000,purchase:800000,labour:250000,other:40000,close:600000,invoiced:1200000},
+    {code:"P002",month:"Jun-26",open:600000,purchase:300000,labour:180000,other:20000,close:300000,invoiced:900000},
+    {code:"P003",month:"Apr-26",open:0,purchase:200000,labour:90000,other:15000,close:150000,invoiced:0},
+    {code:"P003",month:"May-26",open:150000,purchase:250000,labour:110000,other:18000,close:200000,invoiced:500000},
+  ]
+};
+
+/* ---------- helpers ---------- */
+const n=v=>+v||0;
+const cogsOf=r=>n(r.open)+n(r.purchase)+n(r.labour)+n(r.other)-n(r.close);
+function fmt(v){v=Math.round(n(v));if(v===0)return '–';
+  const s=Math.abs(v).toLocaleString('en-IN');return v<0?'('+s+')':s;}
+function inr(v){const a=Math.abs(n(v));let s;
+  if(a>=1e7)s='₹'+(v/1e7).toFixed(2)+' Cr';
+  else if(a>=1e5)s='₹'+(v/1e5).toFixed(2)+' L';
+  else s='₹'+Math.round(v).toLocaleString('en-IN');
+  return v<0?'('+s.replace('₹','₹')+')':s;}
+const pct=v=>(n(v)*100).toFixed(1)+'%';
+const monthsFor=code=>MONTHS.map(m=>state.monthly.find(r=>r.code===code&&r.month===m)||null);
+
+function computeProject(code){
+  const p=state.projects.find(x=>x.code===code); if(!p)return null;
+  const rows=monthsFor(code);
+  let cumCOGS=0,cumInv=0,prevCumRev=0;
+  const series=rows.map((r,i)=>{
+    const periodCOGS=r?cogsOf(r):0;
+    const inv=r?n(r.invoiced):0;
+    cumCOGS+=periodCOGS; cumInv+=inv;
+    const mop=p.estCost?cumCOGS/p.estCost:0;
+    const cumRev=mop*p.estRev;
+    const mis=cumRev-prevCumRev;
+    const cal=cumRev-cumInv;
+    const gp=mis-periodCOGS;
+    const o={m:MONTHS[i],open:r?n(r.open):0,purchase:r?n(r.purchase):0,labour:r?n(r.labour):0,
+      other:r?n(r.other):0,close:r?n(r.close):0,periodCOGS,cumCOGS,mop,cumRev,prevCumRev,mis,inv,cumInv,cal,gp,
+      gpp:mis?gp/mis:0,has:!!r};
+    prevCumRev=cumRev; return o;
+  });
+  const tCOGS=series.reduce((s,x)=>s+x.periodCOGS,0);
+  const mop=p.estCost?tCOGS/p.estCost:0;
+  const rec=mop*p.estRev, inv=series.reduce((s,x)=>s+x.inv,0);
+  return {p,series,tCOGS,mop,rec,inv,cal:rec-inv,gp:rec-tCOGS,gpp:rec?(rec-tCOGS)/rec:0,
+    status:statusOf(p,mop)};
+}
+function statusOf(p,mop){
+  if(p.estCost>p.estRev)return{k:'loss',t:'LOSS — EAC>Rev'};
+  if(mop>1.0001)return{k:'over',t:'Cost over-run'};
+  if(mop>=0.999)return{k:'done',t:'Complete'};
+  return{k:'ok',t:'On track'};
+}
+
+/* ---------- nav ---------- */
+function go(v){
+  document.querySelectorAll('.view').forEach(s=>s.classList.toggle('active',s.id===v));
+  document.querySelectorAll('nav .tab').forEach(b=>b.classList.toggle('active',b.dataset.v===v));
+  if(v==='portfolio')renderPortfolio();
+  if(v==='project')renderProject();
+  if(v==='manage')renderManage();
+}
+
+/* ---------- portfolio ---------- */
+let pfChart;
+function renderPortfolio(){
+  const data=state.projects.filter(p=>p.code).map(p=>computeProject(p.code)).filter(Boolean);
+  // KPIs
+  const T={rev:0,cost:0,cogs:0,rec:0,inv:0,cal:0,gp:0};
+  data.forEach(d=>{T.rev+=d.p.estRev;T.cost+=d.p.estCost;T.cogs+=d.tCOGS;T.rec+=d.rec;T.inv+=d.inv;T.cal+=d.cal;T.gp+=d.gp;});
+  const losses=data.filter(d=>d.status.k==='loss').length;
+  const blendGP=T.rec?T.gp/T.rec:0;
+  document.getElementById('kpis').innerHTML=[
+    kpi('Active projects',data.length,'accent','',''),
+    kpi('Contract value',inr(T.rev),'','Est. cost '+inr(T.cost),''),
+    kpi('Recognised revenue',inr(T.rec),'','of '+inr(T.rev)+' booked',''),
+    kpi('Invoiced to date',inr(T.inv),'',(T.rec?pct(T.inv/T.rec):'–')+' of recognised',''),
+    kpi('Contract asset/(liab)',inr(T.cal),T.cal<0?'neg':'pos','net unbilled vs over-billed',''),
+    kpi('Blended GP %',pct(blendGP),'pos',inr(T.gp)+' GP to date',''),
+    losses?kpi('Loss alerts',losses,'neg','EAC exceeds revenue',''):''
+  ].join('');
+  // table
+  const maxCal=Math.max(1,...data.map(d=>Math.abs(d.cal)));
+  let h=`<thead><tr><th class="l">Code</th><th class="l">Client / Site</th>
+    <th>Est Revenue</th><th>Est Cost</th><th>COGS</th><th class="l">MOP</th>
+    <th>Recognised</th><th>Invoiced</th><th class="l">Contract A/(L)</th><th>GP</th><th>GP%</th><th class="l">Status</th></tr></thead><tbody>`;
+  data.forEach(d=>{
+    const mw=Math.min(100,d.mop*100), over=d.mop>1;
+    const calBar=divBar(d.cal,maxCal);
+    h+=`<tr>
+      <td class="l code">${d.p.code}</td>
+      <td class="l"><b>${esc(d.p.client)}</b><div class="muted" style="font-size:11px">${esc(d.p.site)}</div></td>
+      <td>${fmt(d.p.estRev)}</td><td>${fmt(d.p.estCost)}</td><td>${fmt(d.tCOGS)}</td>
+      <td class="l"><span class="meter ${over?'over':''}"><i style="width:${mw}%"></i></span>${pct(d.mop)}</td>
+      <td><b>${fmt(d.rec)}</b></td><td>${fmt(d.inv)}</td>
+      <td class="l">${calBar}</td>
+      <td class="${d.gp<0?'neg-v':''}">${fmt(d.gp)}</td><td>${pct(d.gpp)}</td>
+      <td class="l"><span class="pill ${d.status.k}">${d.status.t}</span></td></tr>`;
+  });
+  h+=`<tr class="tot"><td class="l">TOTAL</td><td class="l">${data.length} projects</td>
+    <td>${fmt(T.rev)}</td><td>${fmt(T.cost)}</td><td>${fmt(T.cogs)}</td>
+    <td class="l">${pct(T.cost?T.cogs/T.cost:0)}</td>
+    <td>${fmt(T.rec)}</td><td>${fmt(T.inv)}</td><td class="l">${fmt(T.cal)}</td>
+    <td>${fmt(T.gp)}</td><td>${pct(blendGP)}</td><td></td></tr></tbody>`;
+  document.getElementById('pftbl').innerHTML=h;
+  // chart
+  if(pfChart)pfChart.destroy();
+  pfChart=new Chart(document.getElementById('pfChart'),{type:'bar',
+    data:{labels:data.map(d=>d.p.code+' · '+d.p.client),
+      datasets:[
+        {label:'Recognised',data:data.map(d=>d.rec),backgroundColor:'#2C6E9B',borderRadius:4},
+        {label:'Invoiced',data:data.map(d=>d.inv),backgroundColor:'#C7902B',borderRadius:4}]},
+    options:chartOpts(true)});
+}
+function divBar(v,max){
+  const w=Math.min(48,Math.abs(v)/max*48);
+  const seg=v>=0?`<span class="right" style="width:${w}px"></span>`:`<span class="left" style="width:${w}px"></span>`;
+  return `<div class="div-cell"><span class="div-bar"><span class="mid"></span>${seg}</span>
+    <span class="${v<0?'neg-v':'muted'}" style="min-width:64px;text-align:right">${fmt(v)}</span></div>`;
+}
+function kpi(lbl,val,cls,foot){return `<div class="kpi ${cls||''}">
+  <div class="lbl">${lbl}</div><div class="val num">${val}</div>${foot?`<div class="foot">${foot}</div>`:''}</div>`;}
+
+/* ---------- project view ---------- */
+let trendChart;
+function renderProject(){
+  const sel=document.getElementById('projSel');
+  const cur=sel.value;
+  sel.innerHTML=state.projects.filter(p=>p.code).map(p=>`<option value="${p.code}">${p.code} — ${esc(p.client)} · ${esc(p.site)}</option>`).join('');
+  if(cur&&state.projects.find(p=>p.code===cur))sel.value=cur;
+  const code=sel.value; const D=computeProject(code);
+  if(!D){document.getElementById('pjtbl').innerHTML='';return;}
+  document.getElementById('pjkpis').innerHTML=[
+    kpi('Estimated revenue',inr(D.p.estRev),'accent','GP target '+pct(D.p.estRev?(D.p.estRev-D.p.estCost)/D.p.estRev:0)),
+    kpi('Progress (MOP)',pct(D.mop),'',inr(D.tCOGS)+' cost / '+inr(D.p.estCost)+' EAC'),
+    kpi('Recognised revenue',inr(D.rec),'','Invoiced '+inr(D.inv)),
+    kpi('Contract asset/(liab)',inr(D.cal),D.cal<0?'neg':'pos',D.cal<0?'over-billed':'unbilled'),
+    kpi('GP to date',inr(D.gp),D.gp<0?'neg':'pos',pct(D.gpp)+' margin'),
+    D.status.k==='loss'?kpi('Status','LOSS','neg','EAC > revenue'):''
+  ].join('');
+  // table
+  let h=`<thead><tr><th class="l">Particulars</th>`+MONTHS.map(m=>`<th>${m}</th>`).join('')+`<th>Total</th></tr></thead><tbody>`;
+  const S=D.series;
+  const rowSum=k=>S.reduce((s,x)=>s+x[k],0);
+  const line=(lbl,k,opt={})=>{
+    let r=`<tr${opt.bold?' style="font-weight:600"':''}><td class="l">${lbl}</td>`;
+    S.forEach(x=>{const v=x[k];r+=`<td class="${opt.pctf?'':''} ${v<0?'neg-v':''}">${opt.pctf?(x.has||k==='mop'?pct(v):'–'):fmt(v)}</td>`;});
+    const tot=opt.last?(opt.pctf?pct(S[S.length-1][k]):fmt(S[S.length-1][k])):(opt.pctf?'':fmt(rowSum(k)));
+    r+=`<td><b>${tot}</b></td></tr>`; return r;
+  };
+  h+=line('Actual Cost (=COGS)','periodCOGS',{bold:1});
+  h+=line('Measure of Progress (MOP)','mop',{pctf:1,last:1});
+  h+=`<tr style="height:6px"><td colspan="${MONTHS.length+2}" style="border:none;padding:0"></td></tr>`;
+  h+=line('Revenue — Cumulative Recognised','cumRev',{last:1});
+  h+=line('Revenue — MIS (Current Month)','mis',{bold:1});
+  h+=line('Invoiced to Client (Tally)','inv');
+  h+=line('Contract Asset(+)/Liability(−)','cal',{last:1,bold:1});
+  h+=`<tr style="height:6px"><td colspan="${MONTHS.length+2}" style="border:none;padding:0"></td></tr>`;
+  h+=line('Opening Stock','open');h+=line('Purchase','purchase');h+=line('Labour','labour');
+  h+=line('Other Direct Expense','other');h+=line('Closing Stock','close');
+  h+=line('COGS','periodCOGS',{bold:1});
+  h+=`<tr class="tot">`+`<td class="l">Gross Profit (month)</td>`+S.map(x=>`<td class="${x.gp<0?'neg-v':'pos-v'}">${fmt(x.gp)}</td>`).join('')+`<td>${fmt(rowSum('gp'))}</td></tr>`;
+  h+=`<tr style="font-weight:600"><td class="l">GP %</td>`+S.map(x=>`<td>${x.mis?pct(x.gpp):'–'}</td>`).join('')+`<td>${pct(D.gpp)}</td></tr>`;
+  h+='</tbody>';
+  document.getElementById('pjtbl').innerHTML=h;
+}
+
+/* ---------- manage ---------- */
+function renderManage(){
+  // projects
+  let h=`<thead><tr><th class="l">Code</th><th class="l">Client</th><th class="l">Site / Description</th>
+    <th>Est Revenue</th><th>Est Cost (EAC)</th><th>GP</th><th>GP%</th><th></th></tr></thead><tbody>`;
+  state.projects.forEach((p,i)=>{
+    const gp=n(p.estRev)-n(p.estCost), gpp=p.estRev?gp/p.estRev:0;
+    h+=`<tr>
+      <td class="edit l"><input class="cell txt" style="width:70px" value="${esc(p.code)}" onchange="upP(${i},'code',this.value)"></td>
+      <td class="edit l"><input class="cell txt" style="width:90px" value="${esc(p.client)}" onchange="upP(${i},'client',this.value)"></td>
+      <td class="edit l"><input class="cell txt" style="min-width:200px" value="${esc(p.site)}" onchange="upP(${i},'site',this.value)"></td>
+      <td class="edit"><input class="cell" value="${p.estRev}" onchange="upP(${i},'estRev',this.value)"></td>
+      <td class="edit"><input class="cell" value="${p.estCost}" onchange="upP(${i},'estCost',this.value)"></td>
+      <td class="${gp<0?'neg-v':''}">${fmt(gp)}</td><td>${pct(gpp)}</td>
+      <td><button class="del" onclick="delP(${i})" title="Delete">×</button></td></tr>`;
+  });
+  h+='</tbody>';document.getElementById('projEdit').innerHTML=h;
+  // monthly
+  const opts=c=>state.projects.filter(p=>p.code).map(p=>`<option value="${esc(p.code)}" ${p.code===c?'selected':''}>${esc(p.code)} — ${esc(p.client)}</option>`).join('');
+  const mopts=m=>MONTHS.map(x=>`<option ${x===m?'selected':''}>${x}</option>`).join('');
+  let m=`<thead><tr><th class="l">Project</th><th class="l">Client / Project</th><th class="l">Month</th><th>Opening</th><th>Purchase</th>
+    <th>Labour</th><th>Other</th><th>Closing</th><th>COGS</th><th>Invoiced</th><th></th></tr></thead><tbody>`;
+  state.monthly.forEach((r,i)=>{
+    m+=`<tr>
+      <td class="edit l"><select class="cell txt" style="width:120px" onchange="upM(${i},'code',this.value)">${opts(r.code)}</select></td>
+      <td class="l">${nameFor(r.code)}</td>
+      <td class="edit l"><select class="cell txt" style="width:90px" onchange="upM(${i},'month',this.value)">${mopts(r.month)}</select></td>
+      <td class="edit"><input class="cell" value="${r.open}" onchange="upM(${i},'open',this.value)"></td>
+      <td class="edit"><input class="cell" value="${r.purchase}" onchange="upM(${i},'purchase',this.value)"></td>
+      <td class="edit"><input class="cell" value="${r.labour}" onchange="upM(${i},'labour',this.value)"></td>
+      <td class="edit"><input class="cell" value="${r.other}" onchange="upM(${i},'other',this.value)"></td>
+      <td class="edit"><input class="cell" value="${r.close}" onchange="upM(${i},'close',this.value)"></td>
+      <td><b>${fmt(cogsOf(r))}</b></td>
+      <td class="edit"><input class="cell" value="${r.invoiced}" onchange="upM(${i},'invoiced',this.value)"></td>
+      <td><button class="del" onclick="delM(${i})">×</button></td></tr>`;
+  });
+  m+='</tbody>';document.getElementById('mdEdit').innerHTML=m;
+}
+const numF=['estRev','estCost','open','purchase','labour','other','close','invoiced'];
+function upP(i,k,v){state.projects[i][k]=numF.includes(k)?n(v):v;save();renderManage();}
+function upM(i,k,v){state.monthly[i][k]=numF.includes(k)?n(v):v;save();
+  if(k==='code'||k==='month'){renderManage();return;}
+  document.getElementById('mdEdit').querySelectorAll('tbody tr')[i].children[8].innerHTML='<b>'+fmt(cogsOf(state.monthly[i]))+'</b>';}
+function nameFor(code){const p=state.projects.find(x=>x.code===code);
+  return p?'<b>'+esc(p.client)+'</b> · '+esc(p.site):'<span style="color:#C9382E;font-weight:600">⚠ unknown code</span>';}
+function addProject(){state.projects.push({code:'P'+String(state.projects.length+1).padStart(3,'0'),client:'',site:'',estRev:0,estCost:0});save();renderManage();}
+function delP(i){if(confirm('Delete this project?')){state.projects.splice(i,1);save();renderManage();}}
+function addMonthly(){const c=state.projects[0]?state.projects[0].code:'';state.monthly.push({code:c,month:MONTHS[0],open:0,purchase:0,labour:0,other:0,close:0,invoiced:0});save();renderManage();}
+function delM(i){state.monthly.splice(i,1);save();renderManage();}
+
+/* ---------- chart opts ---------- */
+function chartOpts(money){return{responsive:true,maintainAspectRatio:false,
+  interaction:{mode:'index',intersect:false},
+  plugins:{legend:{labels:{font:{family:'Inter',size:12},color:'#3A5468',usePointStyle:true,pointStyleWidth:10}},
+    tooltip:{callbacks:{label:c=>c.dataset.label+': '+inr(c.parsed.y)}}},
+  scales:{x:{grid:{display:false},ticks:{font:{family:'Inter',size:11},color:'#3A5468'}},
+    y:{grid:{color:'#EAEEF3'},ticks:{font:{family:'Inter',size:11},color:'#3A5468',
+      callback:v=>v>=1e7?(v/1e7).toFixed(1)+'Cr':v>=1e5?(v/1e5).toFixed(0)+'L':v}}}};}
+
+/* ---------- persistence (file-based; safe everywhere) ---------- */
+function save(){try{localStorage.setItem('gpTracker',JSON.stringify(state));}catch(e){}}
+function load(){try{const s=localStorage.getItem('gpTracker');if(s)state=JSON.parse(s);}catch(e){}}
+function exportJSON(){dl(JSON.stringify(state,null,2),'gp-tracker-data.json','application/json');}
+function importJSON(e){const f=e.target.files[0];if(!f)return;const r=new FileReader();
+  r.onload=()=>{try{state=JSON.parse(r.result);save();go('portfolio');}catch(x){alert('Invalid file');}};r.readAsText(f);}
+function exportCSV(){
+  const data=state.projects.filter(p=>p.code).map(p=>computeProject(p.code)).filter(Boolean);
+  const head=['Code','Client','Site','EstRevenue','EstCost','COGS','MOP%','Recognised','Invoiced','ContractAsset_Liab','GP','GP%','Status'];
+  const rows=data.map(d=>[d.p.code,d.p.client,d.p.site,d.p.estRev,d.p.estCost,Math.round(d.tCOGS),
+    (d.mop*100).toFixed(2),Math.round(d.rec),d.inv,Math.round(d.cal),Math.round(d.gp),(d.gpp*100).toFixed(2),d.status.t]);
+  const csv=[head,...rows].map(r=>r.map(c=>`"${String(c).replace(/"/g,'""')}"`).join(',')).join('\n');
+  dl(csv,'portfolio-gp.csv','text/csv');
+}
+function dl(content,name,type){const b=new Blob([content],{type});const u=URL.createObjectURL(b);
+  const a=document.createElement('a');a.href=u;a.download=name;a.click();URL.revokeObjectURL(u);}
+function esc(s){return String(s==null?'':s).replace(/[&<>"]/g,c=>({'&':'&amp;','<':'&lt;','>':'&gt;','"':'&quot;'}[c]));}
+
+load();renderPortfolio();
+</script>
+</body>
+</html>
