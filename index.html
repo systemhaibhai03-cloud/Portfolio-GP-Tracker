@@ -118,7 +118,7 @@ td.edit{padding:4px 6px}
 @media(max-width:640px){.kpi .val{font-size:20px}.brand h1{font-size:18px}}
 /* cloud sync */
 .syncpill{display:inline-flex;align-items:center;gap:7px;background:rgba(255,255,255,.08);border:1px solid rgba(255,255,255,.18);
-  border-radius:20px;padding:6px 12px;font-size:12px;font-weight:500;color:#cfe0ec}
+  border-radius:20px;padding:6px 12px;font-size:12px;font-weight:500;color:#cfe0ec;cursor:pointer}
 .syncdot{width:8px;height:8px;border-radius:50%;background:#7d93a3;flex:none}
 .syncpill.ok .syncdot{background:#39c07a;box-shadow:0 0 0 3px rgba(57,192,122,.2)}
 .syncpill.sync .syncdot{background:#E8A33D;animation:pulse 1s infinite}
@@ -130,17 +130,13 @@ td.edit{padding:4px 6px}
 .modal-h{background:linear-gradient(120deg,#0E2A3B,#143A52);color:#fff;padding:16px 20px;font-family:'Space Grotesk';font-weight:600;font-size:16px;display:flex;justify-content:space-between;align-items:center}
 .modal-h .x{cursor:pointer;font-size:20px;opacity:.7}.modal-h .x:hover{opacity:1}
 .modal-b{padding:20px}
-.modal-b label{display:block;font-size:12px;font-weight:600;color:var(--ink-soft);margin:12px 0 5px}
-.modal-b input{width:100%;border:1px solid var(--line);border-radius:8px;padding:10px 12px;font-size:13px;font-variant-numeric:tabular-nums}
-.modal-b input:focus{outline:none;border-color:var(--steel)}
 .modal-b .row{display:flex;gap:10px;margin-top:18px;flex-wrap:wrap}
 .modal-b button{flex:1;border:none;border-radius:8px;padding:11px;font-size:13px;font-weight:600;cursor:pointer;min-width:120px}
 .b-primary{background:var(--rail);color:#fff}.b-primary:hover{background:#143A52}
 .b-ghost{background:#fff;border:1px solid var(--line)!important;color:var(--ink)}.b-ghost:hover{border-color:var(--steel)!important}
-.b-danger{background:#fff;border:1px solid var(--neg)!important;color:var(--neg)}
 .modal-b .help{font-size:11.5px;color:var(--ink-soft);line-height:1.55;background:#F5F8FB;border:1px solid var(--line-soft);border-radius:8px;padding:11px 13px;margin-top:6px}
-.modal-b .help a{color:var(--steel);font-weight:600}
-.modal-b .stat{font-size:12px;margin-top:12px;font-weight:600}
+.modal-b .help code{background:#e7eef4;padding:1px 5px;border-radius:4px;font-size:11px;word-break:break-all}
+.modal-b .stat{font-size:12px;margin-top:14px;font-weight:600}
 </style>
 </head>
 <body>
@@ -151,8 +147,8 @@ td.edit{padding:4px 6px}
       <div class="sub">VISHAL GROUP · POC (Cost-to-Cost) Method · FY 2026–27</div>
     </div>
     <div class="tools">
-      <span class="syncpill" id="syncPill" onclick="openSync()" title="Cloud sync status"><span class="syncdot"></span><span id="syncTxt">Local only</span></span>
-      <button onclick="openSync()">☁ Cloud Sync</button>
+      <span class="syncpill" id="syncPill" onclick="openSync()" title="Sync status"><span class="syncdot"></span><span id="syncTxt">…</span></span>
+      <button onclick="cloudPull(true)">⟳ Pull</button>
       <button onclick="exportJSON()">⤓ Export</button>
       <button onclick="document.getElementById('imp').click()">⤒ Import</button>
       <input type="file" id="imp" accept="application/json" style="display:none" onchange="importJSON(event)">
@@ -166,26 +162,20 @@ td.edit{padding:4px 6px}
   </nav>
 </header>
 
-<!-- CLOUD SYNC MODAL -->
+<!-- SYNC INFO MODAL -->
 <div class="overlay" id="syncModal">
   <div class="modal">
-    <div class="modal-h"><span>☁ Cloud Sync — Pantry</span><span class="x" onclick="closeSync()">×</span></div>
+    <div class="modal-h"><span>☁ Sync Status</span><span class="x" onclick="closeSync()">×</span></div>
     <div class="modal-b">
       <div class="help">
-        <b>Ek baar setup:</b> <a href="https://getpantry.cloud" target="_blank">getpantry.cloud</a> pe jaake email se ek Pantry banao → <b>Pantry ID</b> copy karo.
-        Har PC pe <u>wahi same Pantry ID</u> daalo → sab PC pe same data dikhega. Ek PC pe save → baaki PC pe "Pull latest" se aa jayega (window pe wapas aate hi auto-pull bhi hota hai).
+        Data automatically aapke private GitHub repo me save hota hai (Apps Script ke through).
+        Koi token/setup is PC pe nahi chahiye. Save karte hi auto-commit; window pe wapas aate hi auto-pull.
+        <br><br><b>Endpoint:</b><br><code id="syncUrlShow"></code>
       </div>
-      <label>Pantry ID</label>
-      <input id="pid" placeholder="xxxxxxxx-xxxx-xxxx-xxxx-xxxxxxxxxxxx">
-      <label>Basket name (group ke sab PC same rakho)</label>
-      <input id="pbasket" placeholder="gpTracker" value="gpTracker">
       <div class="stat" id="syncStat" style="color:var(--ink-soft)"></div>
       <div class="row">
-        <button class="b-primary" onclick="connectCloud()">Connect &amp; Sync</button>
-        <button class="b-ghost" onclick="cloudPull(true)">⟳ Pull latest</button>
-      </div>
-      <div class="row" style="margin-top:10px">
-        <button class="b-danger" onclick="disconnectCloud()">Disconnect (is PC pe)</button>
+        <button class="b-primary" onclick="cloudPull(true)">⟳ Pull latest</button>
+        <button class="b-ghost" onclick="cloudPush()">↥ Push now</button>
       </div>
     </div>
   </div>
@@ -243,6 +233,13 @@ td.edit{padding:4px 6px}
 </main>
 
 <script>
+/* ============================================================
+   SYNC SETUP — sirf yeh ek line edit karni hai (ek hi baar).
+   Apps Script deploy karke jo "Web app URL" mila, woh yahan paste karo.
+   Har PC pe yahi file → koi token/setup nahi → automatic sync.
+   ============================================================ */
+const SYNC_URL = 'https://script.google.com/macros/s/AKfycbzslkZvsqEUuE7In4rte2IPtOG_DlScSURbmWyy_SEYhz8tNONOpFT5yzYrv_omSpLx/exec';
+
 const MONTHS=["Apr-26","May-26","Jun-26","Jul-26","Aug-26","Sep-26","Oct-26","Nov-26","Dec-26","Jan-27","Feb-27","Mar-27"];
 
 let state={
@@ -321,7 +318,6 @@ function go(v){
 let pfChart;
 function renderPortfolio(){
   const data=state.projects.filter(p=>p.code).map(p=>computeProject(p.code)).filter(Boolean);
-  // KPIs
   const T={rev:0,cost:0,cogs:0,rec:0,inv:0,cal:0,gp:0};
   data.forEach(d=>{T.rev+=d.p.estRev;T.cost+=d.p.estCost;T.cogs+=d.tCOGS;T.rec+=d.rec;T.inv+=d.inv;T.cal+=d.cal;T.gp+=d.gp;});
   const losses=data.filter(d=>d.status.k==='loss').length;
@@ -335,7 +331,6 @@ function renderPortfolio(){
     kpi('Blended GP %',pct(blendGP),'pos',inr(T.gp)+' GP to date',''),
     losses?kpi('Loss alerts',losses,'neg','EAC exceeds revenue',''):''
   ].join('');
-  // table
   const maxCal=Math.max(1,...data.map(d=>Math.abs(d.cal)));
   let h=`<thead><tr><th class="l">Code</th><th class="l">Client / Site</th>
     <th>Est Revenue</th><th>Est Cost</th><th>COGS</th><th class="l">MOP</th>
@@ -359,7 +354,6 @@ function renderPortfolio(){
     <td>${fmt(T.rec)}</td><td>${fmt(T.inv)}</td><td class="l">${fmt(T.cal)}</td>
     <td>${fmt(T.gp)}</td><td>${pct(blendGP)}</td><td></td></tr></tbody>`;
   document.getElementById('pftbl').innerHTML=h;
-  // chart
   if(pfChart)pfChart.destroy();
   pfChart=new Chart(document.getElementById('pfChart'),{type:'bar',
     data:{labels:data.map(d=>d.p.code+' · '+d.p.client),
@@ -378,7 +372,6 @@ function kpi(lbl,val,cls,foot){return `<div class="kpi ${cls||''}">
   <div class="lbl">${lbl}</div><div class="val num">${val}</div>${foot?`<div class="foot">${foot}</div>`:''}</div>`;}
 
 /* ---------- project view ---------- */
-let trendChart;
 function computeAll(){
   const ps=state.projects.filter(p=>p.code);
   const Ds=ps.map(p=>computeProject(p.code)).filter(Boolean);
@@ -418,13 +411,12 @@ function renderProject(){
     kpi('GP to date',inr(D.gp),D.gp<0?'neg':'pos',pct(D.gpp)+' margin'),
     D.isAll?kpi('Projects',D.count,'',(D.losses?D.losses+' loss alert(s)':'all on track')):(D.status.k==='loss'?kpi('Status','LOSS','neg','EAC > revenue'):'')
   ].join('');
-  // table
   let h=`<thead><tr><th class="l">Particulars</th>`+MONTHS.map(m=>`<th>${m}</th>`).join('')+`<th>Total</th></tr></thead><tbody>`;
   const S=D.series;
   const rowSum=k=>S.reduce((s,x)=>s+x[k],0);
   const line=(lbl,k,opt={})=>{
     let r=`<tr${opt.bold?' style="font-weight:600"':''}><td class="l">${lbl}</td>`;
-    S.forEach(x=>{const v=x[k];r+=`<td class="${opt.pctf?'':''} ${v<0?'neg-v':''}">${opt.pctf?(x.has||k==='mop'?pct(v):'–'):fmt(v)}</td>`;});
+    S.forEach(x=>{const v=x[k];r+=`<td class="${v<0?'neg-v':''}">${opt.pctf?(x.has||k==='mop'?pct(v):'–'):fmt(v)}</td>`;});
     const tot=opt.last?(opt.pctf?pct(S[S.length-1][k]):fmt(S[S.length-1][k])):(opt.pctf?'':fmt(rowSum(k)));
     r+=`<td><b>${tot}</b></td></tr>`; return r;
   };
@@ -447,7 +439,6 @@ function renderProject(){
 
 /* ---------- manage ---------- */
 function renderManage(){
-  // projects
   let h=`<thead><tr><th class="l">Code</th><th class="l">Client</th><th class="l">Site / Description</th>
     <th>Est Revenue</th><th>Est Cost (EAC)</th><th>GP</th><th>GP%</th><th></th></tr></thead><tbody>`;
   state.projects.forEach((p,i)=>{
@@ -462,7 +453,6 @@ function renderManage(){
       <td><button class="del" onclick="delP(${i})" title="Delete">×</button></td></tr>`;
   });
   h+='</tbody>';document.getElementById('projEdit').innerHTML=h;
-  // monthly
   const opts=c=>state.projects.filter(p=>p.code).map(p=>`<option value="${esc(p.code)}" ${p.code===c?'selected':''}>${esc(p.code)} — ${esc(p.client)}</option>`).join('');
   const mopts=m=>MONTHS.map(x=>`<option ${x===m?'selected':''}>${x}</option>`).join('');
   let m=`<thead><tr><th class="l">Project</th><th class="l">Client / Project</th><th class="l">Month</th><th>Opening</th><th>Purchase</th>
@@ -504,71 +494,55 @@ function chartOpts(money){return{responsive:true,maintainAspectRatio:false,
     y:{grid:{color:'#EAEEF3'},ticks:{font:{family:'Inter',size:11},color:'#3A5468',
       callback:v=>v>=1e7?(v/1e7).toFixed(1)+'Cr':v>=1e5?(v/1e5).toFixed(0)+'L':v}}}};}
 
-/* ---------- persistence + Pantry cloud sync ---------- */
-let cloud={pantryId:'',basket:'gpTracker',on:false};
+/* ================= persistence + Apps Script sync ================= */
 let pushTimer=null, pushPending=false;
+const cloudReady=()=> typeof SYNC_URL==='string' && SYNC_URL.indexOf('script.google.com')>-1;
 
 function persistLocal(){try{localStorage.setItem('gpTracker',JSON.stringify(state));}catch(e){}}
 function save(){persistLocal();schedulePush();}
-function load(){try{const s=localStorage.getItem('gpTracker');if(s)state=JSON.parse(s);}catch(e){}
-  try{const c=localStorage.getItem('gpCloud');if(c)cloud=Object.assign(cloud,JSON.parse(c));}catch(e){}}
-function saveCloudCfg(){try{localStorage.setItem('gpCloud',JSON.stringify(cloud));}catch(e){}}
+function load(){try{const s=localStorage.getItem('gpTracker');if(s)state=JSON.parse(s);}catch(e){}}
 
-function pantryUrl(){return `https://getpantry.cloud/apiv1/pantry/${encodeURIComponent(cloud.pantryId)}/basket/${encodeURIComponent(cloud.basket||'gpTracker')}`;}
 function setSync(cls,txt){const p=document.getElementById('syncPill');p.className='syncpill '+(cls||'');
   document.getElementById('syncTxt').textContent=txt;const s=document.getElementById('syncStat');if(s)s.textContent=txt;}
 function rerenderCurrent(){const v=document.querySelector('.view.active');if(!v)return;
   if(v.id==='portfolio')renderPortfolio();else if(v.id==='project')renderProject();else renderManage();}
 
-function openSync(){document.getElementById('pid').value=cloud.pantryId||'';
-  document.getElementById('pbasket').value=cloud.basket||'gpTracker';
+function openSync(){document.getElementById('syncUrlShow').textContent=cloudReady()?SYNC_URL:'(SYNC_URL set nahi hai)';
   document.getElementById('syncModal').classList.add('show');}
 function closeSync(){document.getElementById('syncModal').classList.remove('show');}
 
-async function connectCloud(){
-  const id=document.getElementById('pid').value.trim();
-  const bk=document.getElementById('pbasket').value.trim()||'gpTracker';
-  if(!id){alert('Pantry ID daalo');return;}
-  cloud.pantryId=id;cloud.basket=bk;cloud.on=true;saveCloudCfg();
-  setSync('sync','Connecting…');
-  try{
-    const r=await fetch(pantryUrl());
-    if(r.ok){
-      const j=await r.json();
-      if(j&&j.data){state=JSON.parse(j.data);persistLocal();rerenderCurrent();setSync('ok','Synced ✓');}
-      else{await cloudPush();}            // basket empty
-    }else{await cloudPush();}             // basket doesn't exist yet → create
-    closeSync();
-  }catch(e){setSync('err','Connect failed');}
-}
-function disconnectCloud(){cloud.on=false;saveCloudCfg();setSync('','Local only');closeSync();}
+function schedulePush(){if(!cloudReady())return;pushPending=true;clearTimeout(pushTimer);pushTimer=setTimeout(cloudPush,1200);}
 
-function schedulePush(){if(!cloud.on)return;pushPending=true;clearTimeout(pushTimer);pushTimer=setTimeout(cloudPush,900);}
 async function cloudPush(){
-  if(!cloud.on)return;
+  if(!cloudReady()){alert('SYNC_URL set nahi hai — file me Apps Script URL paste karo');return;}
   setSync('sync','Saving…');
   try{
-    const r=await fetch(pantryUrl(),{method:'POST',headers:{'Content-Type':'application/json'},
-      body:JSON.stringify({data:JSON.stringify(state),updated:new Date().toISOString()})});
+    const r=await fetch(SYNC_URL,{method:'POST',
+      headers:{'Content-Type':'text/plain;charset=utf-8'},   // text/plain → CORS preflight avoid
+      body:JSON.stringify(state)});
+    const j=await r.json().catch(()=>({ok:false}));
     pushPending=false;
-    setSync(r.ok?'ok':'err',r.ok?('Saved '+hhmm()):'Save failed');
+    setSync(j&&j.ok?'ok':'err', j&&j.ok?('Saved '+hhmm()):'Save failed');
   }catch(e){pushPending=false;setSync('err','Save failed');}
 }
 async function cloudPull(manual){
-  if(!cloud.on){if(manual)alert('Pehle Connect karo');return;}
-  if(pushPending&&!manual)return;               // don't overwrite unsynced local edits
+  if(!cloudReady()){if(manual)alert('SYNC_URL set nahi hai');return;}
+  if(pushPending&&!manual)return;   // unsynced local edits overwrite na ho
   setSync('sync','Pulling…');
   try{
-    const r=await fetch(pantryUrl());
-    if(r.ok){const j=await r.json();
-      if(j&&j.data){state=JSON.parse(j.data);persistLocal();rerenderCurrent();}
+    const r=await fetch(SYNC_URL+'?t='+Date.now(),{cache:'no-store'});
+    const j=await r.json().catch(()=>({ok:false}));
+    if(j&&j.ok){
+      if(j.data){let p=null;try{p=JSON.parse(j.data);}catch(e){}
+        if(p&&p.projects){state=p;persistLocal();rerenderCurrent();}}
       setSync('ok','Synced '+hhmm());
     }else setSync('err','Pull failed');
   }catch(e){setSync('err','Offline');}
 }
 function hhmm(){const d=new Date();return ('0'+d.getHours()).slice(-2)+':'+('0'+d.getMinutes()).slice(-2);}
-window.addEventListener('focus',()=>{if(cloud.on&&!pushPending)cloudPull(false);});
+window.addEventListener('focus',()=>{if(cloudReady()&&!pushPending)cloudPull(false);});
 
+/* ---------- export / import ---------- */
 function exportJSON(){dl(JSON.stringify(state,null,2),'gp-tracker-data.json','application/json');}
 function importJSON(e){const f=e.target.files[0];if(!f)return;const r=new FileReader();
   r.onload=()=>{try{state=JSON.parse(r.result);save();go('portfolio');}catch(x){alert('Invalid file');}};r.readAsText(f);}
@@ -584,9 +558,11 @@ function dl(content,name,type){const b=new Blob([content],{type});const u=URL.cr
   const a=document.createElement('a');a.href=u;a.download=name;a.click();URL.revokeObjectURL(u);}
 function esc(s){return String(s==null?'':s).replace(/[&<>"]/g,c=>({'&':'&amp;','<':'&lt;','>':'&gt;','"':'&quot;'}[c]));}
 
+/* ---------- boot ---------- */
 load();
-if(cloud.on){setSync('sync','Connecting…');cloudPull(false);}else{setSync('','Local only');}
 renderPortfolio();
+if(cloudReady()){setSync('sync','Syncing…');cloudPull(false);}
+else{setSync('err','Set SYNC_URL');}
 </script>
 </body>
 </html>
