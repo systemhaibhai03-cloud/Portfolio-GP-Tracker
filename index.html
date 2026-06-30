@@ -97,11 +97,17 @@ tr.tot td{font-weight:700;background:#F2F6F4;border-top:2px solid var(--line)}
 .selrow{display:flex;align-items:center;gap:12px;flex-wrap:wrap}
 select.proj,input.cell{border:1px solid var(--line);border-radius:7px;padding:8px 11px;font-size:13px;color:var(--ink);background:#fff}
 select.proj{font-weight:600;min-width:230px}
-input.cell{width:100%;text-align:right;border:1px solid transparent;background:transparent;border-radius:5px}
+/* auto-fit: width content ke hisaab se (JS se set hoti hai) */
+input.cell{width:auto;min-width:46px;max-width:100%;text-align:right;border:1px solid transparent;background:transparent;border-radius:5px}
 input.cell:hover{border-color:var(--line-soft)}
 input.cell:focus{outline:none;border-color:var(--steel);background:#fff}
-input.cell.txt{text-align:left}
-input.cell.month{text-align:left;cursor:pointer}
+input.cell.txt{text-align:left;min-width:60px}
+select.cell{width:auto;min-width:90px;border:1px solid var(--line-soft);background:#fff}
+/* month (calendar) field — halka steel tint taaki clickable lage */
+input.cell.month{text-align:left;cursor:pointer;min-width:150px;
+  background:var(--steel-soft);border:1px solid #B9D3E6;color:#1d4a6b;font-weight:600}
+input.cell.month:hover{border-color:var(--steel)}
+input.cell.month:focus{background:#fff;border-color:var(--steel)}
 td.edit{padding:4px 6px}
 .btn-sm{background:#fff;border:1px solid var(--line);border-radius:6px;padding:6px 11px;font-size:12px;font-weight:600;color:var(--ink)}
 .btn-sm:hover{border-color:var(--steel);color:var(--steel)}
@@ -498,36 +504,51 @@ function renderManage(){
   state.projects.forEach((p,i)=>{
     const gp=n(p.estRev)-n(p.estCost), gpp=p.estRev?gp/p.estRev:0;
     h+=`<tr>
-      <td class="edit l"><input class="cell txt" style="width:70px" value="${esc(p.code)}" onchange="upP(${i},'code',this.value)"></td>
-      <td class="edit l"><input class="cell txt" style="width:90px" value="${esc(p.client)}" onchange="upP(${i},'client',this.value)"></td>
-      <td class="edit l"><input class="cell txt" style="min-width:200px" value="${esc(p.site)}" onchange="upP(${i},'site',this.value)"></td>
-      <td class="edit"><input class="cell" value="${p.estRev}" onchange="upP(${i},'estRev',this.value)"></td>
-      <td class="edit"><input class="cell" value="${p.estCost}" onchange="upP(${i},'estCost',this.value)"></td>
+      <td class="edit l"><input class="cell txt" value="${esc(p.code)}" oninput="autoSize(this)" onchange="upP(${i},'code',this.value)"></td>
+      <td class="edit l"><input class="cell txt" value="${esc(p.client)}" oninput="autoSize(this)" onchange="upP(${i},'client',this.value)"></td>
+      <td class="edit l"><input class="cell txt" value="${esc(p.site)}" oninput="autoSize(this)" onchange="upP(${i},'site',this.value)"></td>
+      <td class="edit"><input class="cell" value="${p.estRev}" oninput="autoSize(this)" onchange="upP(${i},'estRev',this.value)"></td>
+      <td class="edit"><input class="cell" value="${p.estCost}" oninput="autoSize(this)" onchange="upP(${i},'estCost',this.value)"></td>
       <td class="${gp<0?'neg-v':''}">${fmt(gp)}</td><td>${pct(gpp)}</td>
       <td><button class="del" onclick="delP(${i})" title="Delete">×</button></td></tr>`;
   });
   h+='</tbody>';document.getElementById('projEdit').innerHTML=h;
+  sizeAllInputs();
   const opts=c=>state.projects.filter(p=>p.code).map(p=>`<option value="${esc(p.code)}" ${p.code===c?'selected':''}>${esc(p.code)} — ${esc(p.client)}</option>`).join('');
   let m=`<thead><tr><th class="l">Project</th><th class="l">Client / Project</th><th class="l">Month (calendar)</th><th>Opening</th><th>Purchase</th>
     <th>Labour</th><th>Other</th><th>Closing</th><th>COGS</th><th>Invoiced</th><th></th></tr></thead><tbody>`;
   state.monthly.forEach((r,i)=>{
     const ym=toYM(r.month);
     m+=`<tr>
-      <td class="edit l"><select class="cell txt" style="width:120px" onchange="upM(${i},'code',this.value)">${opts(r.code)}</select></td>
+      <td class="edit l"><select class="cell txt" onchange="upM(${i},'code',this.value)">${opts(r.code)}</select></td>
       <td class="l">${nameFor(r.code)}</td>
-      <td class="edit l"><input type="month" class="cell month" style="width:140px" value="${esc(ym)}" onchange="upM(${i},'month',this.value)"></td>
-      <td class="edit"><input class="cell" value="${r.open}" onchange="upM(${i},'open',this.value)"></td>
-      <td class="edit"><input class="cell" value="${r.purchase}" onchange="upM(${i},'purchase',this.value)"></td>
-      <td class="edit"><input class="cell" value="${r.labour}" onchange="upM(${i},'labour',this.value)"></td>
-      <td class="edit"><input class="cell" value="${r.other}" onchange="upM(${i},'other',this.value)"></td>
-      <td class="edit"><input class="cell" value="${r.close}" onchange="upM(${i},'close',this.value)"></td>
+      <td class="edit l"><input type="month" class="cell month" value="${esc(ym)}" onchange="upM(${i},'month',this.value)"></td>
+      <td class="edit"><input class="cell" value="${r.open}" oninput="autoSize(this)" onchange="upM(${i},'open',this.value)"></td>
+      <td class="edit"><input class="cell" value="${r.purchase}" oninput="autoSize(this)" onchange="upM(${i},'purchase',this.value)"></td>
+      <td class="edit"><input class="cell" value="${r.labour}" oninput="autoSize(this)" onchange="upM(${i},'labour',this.value)"></td>
+      <td class="edit"><input class="cell" value="${r.other}" oninput="autoSize(this)" onchange="upM(${i},'other',this.value)"></td>
+      <td class="edit"><input class="cell" value="${r.close}" oninput="autoSize(this)" onchange="upM(${i},'close',this.value)"></td>
       <td><b>${fmt(cogsOf(r))}</b></td>
-      <td class="edit"><input class="cell" value="${r.invoiced}" onchange="upM(${i},'invoiced',this.value)"></td>
+      <td class="edit"><input class="cell" value="${r.invoiced}" oninput="autoSize(this)" onchange="upM(${i},'invoiced',this.value)"></td>
       <td><button class="del" onclick="delM(${i})">×</button></td></tr>`;
   });
   m+='</tbody>';document.getElementById('mdEdit').innerHTML=m;
+  sizeAllInputs();   // sabhi editable cells ko content ke hisaab se fit karo
 }
 const numF=['estRev','estCost','open','purchase','labour','other','close','invoiced'];
+
+/* ---- input auto-fit: jitna text utni width ---- */
+function autoSize(el){
+  if(!el||el.tagName!=='INPUT'||el.type==='month')return;   // month native control khud size hota hai
+  const len=(el.value!=null?String(el.value).length:0);
+  const txt=el.classList.contains('txt');
+  const minCh=txt?6:4, padCh=txt?1.5:1.2;
+  el.style.width=(Math.max(minCh,len+padCh))+'ch';
+}
+function sizeAllInputs(){
+  document.querySelectorAll('#projEdit input.cell, #mdEdit input.cell').forEach(autoSize);
+}
+
 function upP(i,k,v){state.projects[i][k]=numF.includes(k)?n(v):v;save();renderManage();}
 function upM(i,k,v){
   if(k==='month'){v=toYM(v);}
