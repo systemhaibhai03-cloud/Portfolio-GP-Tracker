@@ -101,6 +101,7 @@ input.cell{width:100%;text-align:right;border:1px solid transparent;background:t
 input.cell:hover{border-color:var(--line-soft)}
 input.cell:focus{outline:none;border-color:var(--steel);background:#fff}
 input.cell.txt{text-align:left}
+input.cell.month{text-align:left;cursor:pointer}
 td.edit{padding:4px 6px}
 .btn-sm{background:#fff;border:1px solid var(--line);border-radius:6px;padding:6px 11px;font-size:12px;font-weight:600;color:var(--ink)}
 .btn-sm:hover{border-color:var(--steel);color:var(--steel)}
@@ -144,7 +145,7 @@ td.edit{padding:4px 6px}
   <div class="brand">
     <div>
       <h1>Portfolio GP Tracker</h1>
-      <div class="sub">VISHAL GROUP · POC (Cost-to-Cost) Method · FY 2026–27</div>
+      <div class="sub">VISHAL GROUP · POC (Cost-to-Cost) Method · <span id="fyRange">FY 2026–27</span></div>
     </div>
     <div class="tools">
       <span class="syncpill" id="syncPill" onclick="openSync()" title="Sync status"><span class="syncdot"></span><span id="syncTxt">…</span></span>
@@ -227,7 +228,7 @@ td.edit{padding:4px 6px}
         <button class="btn-add" onclick="addMonthly()">+ Add month row</button>
       </div>
       <div class="tbl-wrap"><table id="mdEdit"></table></div>
-      <div class="note">COGS = Opening + Purchase + Labour + Other − Closing &nbsp;(auto). Invoiced = Tally se actual bill raised.</div>
+      <div class="note">Month field pe click karo → <b>calendar</b> khulega, kisi bhi year/month select kar lo. COGS = Opening + Purchase + Labour + Other − Closing (auto). Invoiced = Tally se actual bill raised.</div>
     </div>
   </section>
 </main>
@@ -240,7 +241,45 @@ td.edit{padding:4px 6px}
    ============================================================ */
 const SYNC_URL = 'https://script.google.com/macros/s/AKfycbzslkZvsqEUuE7In4rte2IPtOG_DlScSURbmWyy_SEYhz8tNONOpFT5yzYrv_omSpLx/exec';
 
-const MONTHS=["Apr-26","May-26","Jun-26","Jul-26","Aug-26","Sep-26","Oct-26","Nov-26","Dec-26","Jan-27","Feb-27","Mar-27"];
+/* ---------- month system: ab YYYY-MM (koi bhi year) ---------- */
+const MMM=["Jan","Feb","Mar","Apr","May","Jun","Jul","Aug","Sep","Oct","Nov","Dec"];
+// "Apr-26"/"Apr-2026"/"2026-04" → "2026-04"
+function toYM(m){
+  if(m==null) return '';
+  m=String(m).trim();
+  if(/^\d{4}-\d{2}$/.test(m)) return m;
+  const mt=/^([A-Za-z]{3,})[-\s]?(\d{2,4})$/.exec(m);
+  if(mt){
+    const mi=MMM.findIndex(x=>x.toLowerCase()===mt[1].slice(0,3).toLowerCase());
+    if(mi>=0){let y=+mt[2]; if(y<100)y+=2000; return y+'-'+String(mi+1).padStart(2,'0');}
+  }
+  return m;
+}
+function labelOf(ym){
+  const mt=/^(\d{4})-(\d{2})$/.exec(ym||'');
+  if(!mt) return ym||'';
+  return MMM[+mt[2]-1]+'-'+mt[1].slice(2);
+}
+function ymNow(){const d=new Date();return d.getFullYear()+'-'+String(d.getMonth()+1).padStart(2,'0');}
+// sorted distinct months of a project
+function monthsOfProject(code){
+  return [...new Set(state.monthly.filter(r=>r.code===code&&r.month).map(r=>toYM(r.month)))].sort();
+}
+// sorted distinct months across all data
+function allActiveMonths(){
+  return [...new Set(state.monthly.filter(r=>r.month).map(r=>toYM(r.month)))].sort();
+}
+// contiguous Apr..Mar style range between first & last (gaps fill with empty months)
+function ymRange(list){
+  if(!list.length) return [];
+  const a=list[0], b=list[list.length-1];
+  let [ya,ma]=a.split('-').map(Number), [yb,mb]=b.split('-').map(Number);
+  const out=[]; let y=ya,m=ma, guard=0;
+  while((y<yb||(y===yb&&m<=mb)) && guard<600){
+    out.push(y+'-'+String(m).padStart(2,'0')); m++; if(m>12){m=1;y++;} guard++;
+  }
+  return out;
+}
 
 let state={
   projects:[
@@ -249,15 +288,15 @@ let state={
     {code:"P003",client:"HPCL",site:"Vizag – Substation Works",estRev:3000000,estCost:2550000},
   ],
   monthly:[
-    {code:"P001",month:"Apr-26",open:0,purchase:73882,labour:0,other:5000,close:73882,invoiced:0},
-    {code:"P001",month:"May-26",open:73882,purchase:1897200,labour:0,other:136022,close:1971082,invoiced:0},
-    {code:"P001",month:"Jun-26",open:1971082,purchase:0,labour:417095,other:0,close:558274,invoiced:2798854},
-    {code:"P001",month:"Jul-26",open:558274,purchase:0,labour:0,other:0,close:0,invoiced:0},
-    {code:"P002",month:"Apr-26",open:0,purchase:500000,labour:200000,other:30000,close:400000,invoiced:0},
-    {code:"P002",month:"May-26",open:400000,purchase:800000,labour:250000,other:40000,close:600000,invoiced:1200000},
-    {code:"P002",month:"Jun-26",open:600000,purchase:300000,labour:180000,other:20000,close:300000,invoiced:900000},
-    {code:"P003",month:"Apr-26",open:0,purchase:200000,labour:90000,other:15000,close:150000,invoiced:0},
-    {code:"P003",month:"May-26",open:150000,purchase:250000,labour:110000,other:18000,close:200000,invoiced:500000},
+    {code:"P001",month:"2026-04",open:0,purchase:73882,labour:0,other:5000,close:73882,invoiced:0},
+    {code:"P001",month:"2026-05",open:73882,purchase:1897200,labour:0,other:136022,close:1971082,invoiced:0},
+    {code:"P001",month:"2026-06",open:1971082,purchase:0,labour:417095,other:0,close:558274,invoiced:2798854},
+    {code:"P001",month:"2026-07",open:558274,purchase:0,labour:0,other:0,close:0,invoiced:0},
+    {code:"P002",month:"2026-04",open:0,purchase:500000,labour:200000,other:30000,close:400000,invoiced:0},
+    {code:"P002",month:"2026-05",open:400000,purchase:800000,labour:250000,other:40000,close:600000,invoiced:1200000},
+    {code:"P002",month:"2026-06",open:600000,purchase:300000,labour:180000,other:20000,close:300000,invoiced:900000},
+    {code:"P003",month:"2026-04",open:0,purchase:200000,labour:90000,other:15000,close:150000,invoiced:0},
+    {code:"P003",month:"2026-05",open:150000,purchase:250000,labour:110000,other:18000,close:200000,invoiced:500000},
   ]
 };
 
@@ -272,11 +311,11 @@ function inr(v){const a=Math.abs(n(v));let s;
   else s='₹'+Math.round(v).toLocaleString('en-IN');
   return v<0?'('+s.replace('₹','₹')+')':s;}
 const pct=v=>(n(v)*100).toFixed(1)+'%';
-const monthsFor=code=>MONTHS.map(m=>state.monthly.find(r=>r.code===code&&r.month===m)||null);
 
-function computeProject(code){
+function computeProject(code, monthList){
   const p=state.projects.find(x=>x.code===code); if(!p)return null;
-  const rows=monthsFor(code);
+  const months = monthList || monthsOfProject(code);
+  const rows=months.map(m=>state.monthly.find(r=>r.code===code&&toYM(r.month)===m)||null);
   let cumCOGS=0,cumInv=0,prevCumRev=0;
   const series=rows.map((r,i)=>{
     const periodCOGS=r?cogsOf(r):0;
@@ -287,7 +326,7 @@ function computeProject(code){
     const mis=cumRev-prevCumRev;
     const cal=cumRev-cumInv;
     const gp=mis-periodCOGS;
-    const o={m:MONTHS[i],open:r?n(r.open):0,purchase:r?n(r.purchase):0,labour:r?n(r.labour):0,
+    const o={m:months[i],ml:labelOf(months[i]),open:r?n(r.open):0,purchase:r?n(r.purchase):0,labour:r?n(r.labour):0,
       other:r?n(r.other):0,close:r?n(r.close):0,periodCOGS,cumCOGS,mop,cumRev,prevCumRev,mis,inv,cumInv,cal,gp,
       gpp:mis?gp/mis:0,has:!!r};
     prevCumRev=cumRev; return o;
@@ -314,9 +353,17 @@ function go(v){
   if(v==='manage')renderManage();
 }
 
+/* ---------- subtitle range ---------- */
+function updateRange(){
+  const el=document.getElementById('fyRange'); if(!el)return;
+  const ms=allActiveMonths();
+  el.textContent = ms.length? (labelOf(ms[0])+' → '+labelOf(ms[ms.length-1])) : 'No data';
+}
+
 /* ---------- portfolio ---------- */
 let pfChart;
 function renderPortfolio(){
+  updateRange();
   const data=state.projects.filter(p=>p.code).map(p=>computeProject(p.code)).filter(Boolean);
   const T={rev:0,cost:0,cogs:0,rec:0,inv:0,cal:0,gp:0};
   data.forEach(d=>{T.rev+=d.p.estRev;T.cost+=d.p.estCost;T.cogs+=d.tCOGS;T.rec+=d.rec;T.inv+=d.inv;T.cal+=d.cal;T.gp+=d.gp;});
@@ -374,15 +421,17 @@ function kpi(lbl,val,cls,foot){return `<div class="kpi ${cls||''}">
 /* ---------- project view ---------- */
 function computeAll(){
   const ps=state.projects.filter(p=>p.code);
-  const Ds=ps.map(p=>computeProject(p.code)).filter(Boolean);
+  if(!ps.length)return null;
+  const months=ymRange(allActiveMonths());
+  const Ds=ps.map(p=>computeProject(p.code, months)).filter(Boolean);
   if(!Ds.length)return null;
   const estRev=Ds.reduce((s,d)=>s+d.p.estRev,0), estCost=Ds.reduce((s,d)=>s+d.p.estCost,0);
   let cumCOGS=0,cumInv=0;
-  const series=MONTHS.map((m,i)=>{
+  const series=months.map((m,i)=>{
     const sum=k=>Ds.reduce((s,d)=>s+d.series[i][k],0);
     const periodCOGS=sum('periodCOGS'), inv=sum('inv'), cumRev=sum('cumRev'), mis=sum('mis');
     cumCOGS+=periodCOGS; cumInv+=inv;
-    return {m,open:sum('open'),purchase:sum('purchase'),labour:sum('labour'),other:sum('other'),close:sum('close'),
+    return {m,ml:labelOf(m),open:sum('open'),purchase:sum('purchase'),labour:sum('labour'),other:sum('other'),close:sum('close'),
       periodCOGS,cumCOGS,mop:estCost?cumCOGS/estCost:0,cumRev,prevCumRev:0,mis,inv,cumInv,cal:cumRev-cumInv,
       gp:mis-periodCOGS,gpp:mis?(mis-periodCOGS)/mis:0,has:Ds.some(d=>d.series[i].has)};
   });
@@ -401,7 +450,7 @@ function renderProject(){
   sel.innerHTML=opts;
   if(cur&&(cur==='__ALL__'||state.projects.find(p=>p.code===cur)))sel.value=cur;
   const code=sel.value;
-  const D = code==='__ALL__' ? computeAll() : computeProject(code);
+  const D = code==='__ALL__' ? computeAll() : computeProject(code, ymRange(monthsOfProject(code)));
   if(!D){document.getElementById('pjkpis').innerHTML='<div class="kpi"><div class="lbl">No projects</div><div class="val">–</div></div>';document.getElementById('pjtbl').innerHTML='';return;}
   document.getElementById('pjkpis').innerHTML=[
     kpi(D.isAll?'Total contract value':'Estimated revenue',inr(D.p.estRev),'accent',(D.isAll?'Est. cost ':'GP target ')+(D.isAll?inr(D.p.estCost):pct(D.p.estRev?(D.p.estRev-D.p.estCost)/D.p.estRev:0))),
@@ -411,8 +460,13 @@ function renderProject(){
     kpi('GP to date',inr(D.gp),D.gp<0?'neg':'pos',pct(D.gpp)+' margin'),
     D.isAll?kpi('Projects',D.count,'',(D.losses?D.losses+' loss alert(s)':'all on track')):(D.status.k==='loss'?kpi('Status','LOSS','neg','EAC > revenue'):'')
   ].join('');
-  let h=`<thead><tr><th class="l">Particulars</th>`+MONTHS.map(m=>`<th>${m}</th>`).join('')+`<th>Total</th></tr></thead><tbody>`;
   const S=D.series;
+  if(!S.length){
+    document.getElementById('pjtbl').innerHTML='<tbody><tr><td class="l" style="padding:18px;color:var(--ink-soft)">Is project ka koi monthly data nahi hai. Manage Data me jaake month add karo.</td></tr></tbody>';
+    return;
+  }
+  let h=`<thead><tr><th class="l">Particulars</th>`+S.map(x=>`<th>${x.ml}</th>`).join('')+`<th>Total</th></tr></thead><tbody>`;
+  const colCount=S.length+2;
   const rowSum=k=>S.reduce((s,x)=>s+x[k],0);
   const line=(lbl,k,opt={})=>{
     let r=`<tr${opt.bold?' style="font-weight:600"':''}><td class="l">${lbl}</td>`;
@@ -422,12 +476,12 @@ function renderProject(){
   };
   h+=line('Actual Cost (=COGS)','periodCOGS',{bold:1});
   h+=line('Measure of Progress (MOP)','mop',{pctf:1,last:1});
-  h+=`<tr style="height:6px"><td colspan="${MONTHS.length+2}" style="border:none;padding:0"></td></tr>`;
+  h+=`<tr style="height:6px"><td colspan="${colCount}" style="border:none;padding:0"></td></tr>`;
   h+=line('Revenue — Cumulative Recognised','cumRev',{last:1});
   h+=line('Revenue — MIS (Current Month)','mis',{bold:1});
   h+=line('Invoiced to Client (Tally)','inv');
   h+=line('Contract Asset(+)/Liability(−)','cal',{last:1,bold:1});
-  h+=`<tr style="height:6px"><td colspan="${MONTHS.length+2}" style="border:none;padding:0"></td></tr>`;
+  h+=`<tr style="height:6px"><td colspan="${colCount}" style="border:none;padding:0"></td></tr>`;
   h+=line('Opening Stock','open');h+=line('Purchase','purchase');h+=line('Labour','labour');
   h+=line('Other Direct Expense','other');h+=line('Closing Stock','close');
   h+=line('COGS','periodCOGS',{bold:1});
@@ -454,14 +508,14 @@ function renderManage(){
   });
   h+='</tbody>';document.getElementById('projEdit').innerHTML=h;
   const opts=c=>state.projects.filter(p=>p.code).map(p=>`<option value="${esc(p.code)}" ${p.code===c?'selected':''}>${esc(p.code)} — ${esc(p.client)}</option>`).join('');
-  const mopts=m=>MONTHS.map(x=>`<option ${x===m?'selected':''}>${x}</option>`).join('');
-  let m=`<thead><tr><th class="l">Project</th><th class="l">Client / Project</th><th class="l">Month</th><th>Opening</th><th>Purchase</th>
+  let m=`<thead><tr><th class="l">Project</th><th class="l">Client / Project</th><th class="l">Month (calendar)</th><th>Opening</th><th>Purchase</th>
     <th>Labour</th><th>Other</th><th>Closing</th><th>COGS</th><th>Invoiced</th><th></th></tr></thead><tbody>`;
   state.monthly.forEach((r,i)=>{
+    const ym=toYM(r.month);
     m+=`<tr>
       <td class="edit l"><select class="cell txt" style="width:120px" onchange="upM(${i},'code',this.value)">${opts(r.code)}</select></td>
       <td class="l">${nameFor(r.code)}</td>
-      <td class="edit l"><select class="cell txt" style="width:90px" onchange="upM(${i},'month',this.value)">${mopts(r.month)}</select></td>
+      <td class="edit l"><input type="month" class="cell month" style="width:140px" value="${esc(ym)}" onchange="upM(${i},'month',this.value)"></td>
       <td class="edit"><input class="cell" value="${r.open}" onchange="upM(${i},'open',this.value)"></td>
       <td class="edit"><input class="cell" value="${r.purchase}" onchange="upM(${i},'purchase',this.value)"></td>
       <td class="edit"><input class="cell" value="${r.labour}" onchange="upM(${i},'labour',this.value)"></td>
@@ -475,14 +529,22 @@ function renderManage(){
 }
 const numF=['estRev','estCost','open','purchase','labour','other','close','invoiced'];
 function upP(i,k,v){state.projects[i][k]=numF.includes(k)?n(v):v;save();renderManage();}
-function upM(i,k,v){state.monthly[i][k]=numF.includes(k)?n(v):v;save();
+function upM(i,k,v){
+  if(k==='month'){v=toYM(v);}
+  state.monthly[i][k]=numF.includes(k)?n(v):v;save();
   if(k==='code'||k==='month'){renderManage();return;}
-  document.getElementById('mdEdit').querySelectorAll('tbody tr')[i].children[8].innerHTML='<b>'+fmt(cogsOf(state.monthly[i]))+'</b>';}
+  document.getElementById('mdEdit').querySelectorAll('tbody tr')[i].children[8].innerHTML='<b>'+fmt(cogsOf(state.monthly[i]))+'</b>';
+}
 function nameFor(code){const p=state.projects.find(x=>x.code===code);
   return p?'<b>'+esc(p.client)+'</b> · '+esc(p.site):'<span style="color:#C9382E;font-weight:600">⚠ unknown code</span>';}
 function addProject(){state.projects.push({code:'P'+String(state.projects.length+1).padStart(3,'0'),client:'',site:'',estRev:0,estCost:0});save();renderManage();}
 function delP(i){if(confirm('Delete this project?')){state.projects.splice(i,1);save();renderManage();}}
-function addMonthly(){const c=state.projects[0]?state.projects[0].code:'';state.monthly.push({code:c,month:MONTHS[0],open:0,purchase:0,labour:0,other:0,close:0,invoiced:0});save();renderManage();}
+function addMonthly(){
+  const c=state.projects[0]?state.projects[0].code:'';
+  const all=allActiveMonths();
+  const def=all.length?all[all.length-1]:ymNow();
+  state.monthly.push({code:c,month:def,open:0,purchase:0,labour:0,other:0,close:0,invoiced:0});save();renderManage();
+}
 function delM(i){state.monthly.splice(i,1);save();renderManage();}
 
 /* ---------- chart opts ---------- */
@@ -497,6 +559,11 @@ function chartOpts(money){return{responsive:true,maintainAspectRatio:false,
 /* ================= persistence + Apps Script sync ================= */
 let pushTimer=null, pushPending=false;
 const cloudReady=()=> typeof SYNC_URL==='string' && SYNC_URL.indexOf('script.google.com')>-1;
+
+// purane "Apr-26" format ko YYYY-MM me convert (backward compatible)
+function migrate(){
+  if(state&&Array.isArray(state.monthly)) state.monthly.forEach(r=>{ r.month=toYM(r.month); });
+}
 
 function persistLocal(){try{localStorage.setItem('gpTracker',JSON.stringify(state));}catch(e){}}
 function save(){persistLocal();schedulePush();}
@@ -534,7 +601,7 @@ async function cloudPull(manual){
     const j=await r.json().catch(()=>({ok:false}));
     if(j&&j.ok){
       if(j.data){let p=null;try{p=JSON.parse(j.data);}catch(e){}
-        if(p&&p.projects){state=p;persistLocal();rerenderCurrent();}}
+        if(p&&p.projects){state=p;migrate();persistLocal();rerenderCurrent();}}
       setSync('ok','Synced '+hhmm());
     }else setSync('err','Pull failed');
   }catch(e){setSync('err','Offline');}
@@ -545,7 +612,7 @@ window.addEventListener('focus',()=>{if(cloudReady()&&!pushPending)cloudPull(fal
 /* ---------- export / import ---------- */
 function exportJSON(){dl(JSON.stringify(state,null,2),'gp-tracker-data.json','application/json');}
 function importJSON(e){const f=e.target.files[0];if(!f)return;const r=new FileReader();
-  r.onload=()=>{try{state=JSON.parse(r.result);save();go('portfolio');}catch(x){alert('Invalid file');}};r.readAsText(f);}
+  r.onload=()=>{try{state=JSON.parse(r.result);migrate();save();go('portfolio');}catch(x){alert('Invalid file');}};r.readAsText(f);}
 function exportCSV(){
   const data=state.projects.filter(p=>p.code).map(p=>computeProject(p.code)).filter(Boolean);
   const head=['Code','Client','Site','EstRevenue','EstCost','COGS','MOP%','Recognised','Invoiced','ContractAsset_Liab','GP','GP%','Status'];
@@ -560,6 +627,7 @@ function esc(s){return String(s==null?'':s).replace(/[&<>"]/g,c=>({'&':'&amp;','
 
 /* ---------- boot ---------- */
 load();
+migrate();
 renderPortfolio();
 if(cloudReady()){setSync('sync','Syncing…');cloudPull(false);}
 else{setSync('err','Set SYNC_URL');}
