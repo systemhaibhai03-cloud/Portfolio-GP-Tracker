@@ -489,7 +489,7 @@ function renderProject(){
   h+=line('Contract Asset(+)/Liability(−)','cal',{last:1,bold:1});
   h+=`<tr style="height:6px"><td colspan="${colCount}" style="border:none;padding:0"></td></tr>`;
   h+=line('Opening Stock','open');h+=line('Purchase','purchase');h+=line('Labour','labour');
-  h+=line('Other Direct Expense','other');h+=line('Closing Stock','close');
+  h+=line('Other Direct Expense','other');h+=line('Closing Stock','close',{last:1});
   h+=line('COGS','periodCOGS',{bold:1});
   h+=`<tr class="tot">`+`<td class="l">Gross Profit (month)</td>`+S.map(x=>`<td class="${x.gp<0?'neg-v':'pos-v'}">${fmt(x.gp)}</td>`).join('')+`<td>${fmt(rowSum('gp'))}</td></tr>`;
   h+=`<tr style="font-weight:600"><td class="l">GP %</td>`+S.map(x=>`<td>${x.mis?pct(x.gpp):'–'}</td>`).join('')+`<td>${pct(D.gpp)}</td></tr>`;
